@@ -19,7 +19,7 @@ public class EmailService {
         String resetLink = "http://localhost:8080/reset-password-email?token=" + resetToken;
 
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom();
+        message.setFrom("learnixsapteam@gmail.com");
         message.setTo(email);
         message.setSubject("Password Reset Request");
         message.setText("To reset your password, click the link below:\n" + resetLink);
