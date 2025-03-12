@@ -150,32 +150,37 @@ public class UserService {
     }
 
 
-    public void registerOrUpdateUserFromGoogle(String name, String email) {
+    public User registerOrUpdateUserFromGoogle(String name, String email, String token) {
         Optional<User> existingUser = Optional.ofNullable(userRepository.findByEmail(email));
 
+        String[] nameParts = name.split(" ", 2);
+        String firstName = nameParts[0];
+        String lastName = nameParts.length > 1 ? nameParts[1] : "";
         if (existingUser.isPresent()) {
-            // Якщо користувач вже існує, просто оновлюємо його дані
             User user = existingUser.get();
-            // Якщо необхідно, можна оновити інші поля, як ім'я
-            if (user.getFirstName() == null || user.getLastName() == null) {
-                user.setFirstName(name.split(" ")[0]);  // assuming first name is the first part of the full name
-                user.setLastName(name.split(" ")[1]);   // assuming last name is the second part
+
+            // Оновлюємо ім'я, якщо воно ще не збережене
+            if (user.getFirstName() == null || user.getFirstName().isEmpty()) {
+                user.setFirstName(firstName);
             }
+            if (user.getLastName() == null || user.getLastName().isEmpty()) {
+                user.setLastName(lastName);
+            }
+            user.setAuthToken(token);
             userRepository.save(user);
+            return user;
         } else {
-            // Якщо користувач не існує, створюємо нового
             User newUser = new User();
-            newUser.setFirstName(name.split(" ")[0]);  // assuming first name is the first part of the full name
-            newUser.setLastName(name.split(" ")[1]);   // assuming last name is the second part
+            newUser.setFirstName(firstName);
+            newUser.setLastName(lastName);
             newUser.setEmail(email);
-            newUser.setLogin(email);  // Set the login as email or any unique identifier
-
-            // Оскільки Google аутентифікація не потребує пароля, ми не встановлюємо його.
-            // Для безпеки ми також можемо залишити поле пароля порожнім або не зберігати його взагалі.
-
+            newUser.setLogin(email);
+            newUser.setRole(Role.USER);
             userRepository.save(newUser);
+            return newUser;
         }
     }
+
 
     public void requestPasswordResetEmail(String email) {
         Optional<User> user = Optional.ofNullable(userRepository.findByEmail(email));

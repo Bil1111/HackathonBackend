@@ -27,6 +27,7 @@ public class UserController {
     private UserService userService;
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable("id") Long id) {
         Optional<User> customer = userService.getUserById(id);
@@ -51,25 +52,29 @@ public class UserController {
         userService.updateUserDetails(request, id);
         return new ResponseEntity<>("User updated successfully", HttpStatus.OK);
     }
+
     @PostMapping("/register")
-    public ResponseEntity<String> registerUser(@RequestBody @Valid UserRegistrationRequest request,
-                                               BindingResult bindingResult) {
+    public ResponseEntity<Map<String, Object>> registerUser(@RequestBody @Valid UserRegistrationRequest request,
+                                                            BindingResult bindingResult) {
+        Map<String, Object> response = new HashMap<>();
         try {
             userService.registerValidation(bindingResult);
-            userService.checkingUserLoginEmail(request.getLogin(),request.getEmail());
+            userService.checkingUserLoginEmail(request.getLogin(), request.getEmail());
             userService.registerUser(request);
-            return new ResponseEntity<>("User added successfully", HttpStatus.CREATED);
+            response.put("message", "User added successfully");
+            return new ResponseEntity<>(response, HttpStatus.CREATED);
         } catch (UserAlreadyExistsException e) {
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.CONFLICT);
+            response.put("message", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.CONFLICT);
         }
     }
 
     @PostMapping("/register/admin")
     public ResponseEntity<String> registerAdmin(@RequestBody @Valid UserRegistrationRequest request,
-                                               BindingResult bindingResult) {
+                                                BindingResult bindingResult) {
         try {
             userService.registerValidation(bindingResult);
-            userService.checkingUserLoginEmail(request.getLogin(),request.getEmail());
+            userService.checkingUserLoginEmail(request.getLogin(), request.getEmail());
             userService.registerAdmin(request);
             return new ResponseEntity<>("Admin added successfully", HttpStatus.CREATED);
         } catch (UserAlreadyExistsException e) {
@@ -101,7 +106,7 @@ public class UserController {
                 if (loggedInUser.getRole().equals(Role.ADMIN)) {
                     response.put("redirect", "/admin"); // Адмін
                 } else {
-                    response.put("redirect", "/about"); // Звичайний користувач
+                    response.put("redirect", "/page1"); // Звичайний користувач
                 }
                 return new ResponseEntity<>(response, HttpStatus.OK); // Повертаємо ResponseEntity з Map
             } else {
@@ -114,61 +119,73 @@ public class UserController {
         }
     }
 
-    @GetMapping("/register/google")
-    public ResponseEntity<String> registerGoogle(@AuthenticationPrincipal OAuth2User principal) {
-        // Отримуємо дані користувача, наприклад, ім'я, email
-        String name = principal.getAttribute("name");
-        String email = principal.getAttribute("email");
-
-        // Створити чи оновити користувача у базі даних, якщо потрібно
-        userService.registerOrUpdateUserFromGoogle(name, email);
-
-        return new ResponseEntity<>("Hello, " + name + " (" + email + ")", HttpStatus.OK);
+    //    @GetMapping("/register/google")
+//    public ResponseEntity<String> registerGoogle(@AuthenticationPrincipal OAuth2User principal) {
+//        // Отримуємо дані користувача, наприклад, ім'я, email
+//        String name = principal.getAttribute("name");
+//        String email = principal.getAttribute("email");
+//
+//        // Створити чи оновити користувача у базі даних, якщо потрібно
+//        userService.registerOrUpdateUserFromGoogle(name, email);
+//
+//        return new ResponseEntity<>("Hello, " + name + " (" + email + ")", HttpStatus.OK);
+//    }
+    @GetMapping("/current-user")
+    public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(new UserResponse(user));
     }
 
     @PostMapping("/request-password-reset-email")
-    public ResponseEntity<String> requestPasswordResetEmail(@RequestBody PasswordResetRequest request) {
+    public ResponseEntity<Map<String, String>> requestPasswordResetEmail(@RequestBody PasswordResetRequest request) {
         if (request.getEmail() == null || request.getEmail().isEmpty()) {
-            return new ResponseEntity<>("Email cannot be empty", HttpStatus.BAD_REQUEST);
+            return ResponseEntity.badRequest().body(Map.of("error", "Email cannot be empty"));
         }
 
         try {
             userService.requestPasswordResetEmail(request.getEmail());
-            return new ResponseEntity<>("Password reset link sent to your email", HttpStatus.OK);
+            return ResponseEntity.ok(Map.of("message", "Password reset link sent to your email"));
         } catch (Exception e) {
-            return new ResponseEntity<>("Error: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Error: " + e.getMessage()));
         }
     }
 
     @PostMapping("/request-password-reset-phone")
-    public ResponseEntity<String> requestPasswordResetByPhone(@RequestBody SMSRequest smsRequest) {
+    public ResponseEntity<Map<String, String>> requestPasswordResetByPhone(@RequestBody SMSRequest smsRequest) {
         try {
             userService.requestPasswordResetByPhone(smsRequest.getPhoneNumber());
-            return new ResponseEntity<>("Password reset code sent via SMS", HttpStatus.OK);
+            return ResponseEntity.ok(Map.of("message", "Password reset code sent via SMS"));
         } catch (Exception e) {
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
         }
     }
 
+
     @PostMapping("/reset-password-email")
-    public ResponseEntity<String> resetPasswordEmail(@RequestParam String token,
-                                                @RequestBody ResetPasswordRequest resetPasswordRequest) {
+    public ResponseEntity<Map<String, String>> resetPasswordEmail(@RequestParam String token,
+                                                                  @RequestBody ResetPasswordRequest resetPasswordRequest) {
+        if (token == null || token.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Missing token"));
+        }
+
+        if (resetPasswordRequest.getNewPassword() == null || resetPasswordRequest.getNewPassword().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "New password cannot be empty"));
+        }
+
         try {
             userService.resetPassword(token, resetPasswordRequest.getNewPassword());
-            return new ResponseEntity<>("Password reset successfully", HttpStatus.OK);
+            return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
         } catch (Exception e) {
-            return new ResponseEntity<>("Error: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Error: " + e.getMessage()));
         }
     }
 
     @PostMapping("/reset-password-phone")
-    public ResponseEntity<String> resetPasswordPhone(@RequestBody ResetPasswordRequest resetPasswordRequest) {
+    public ResponseEntity<Map<String, String>> resetPasswordPhone(@RequestBody ResetPasswordRequest resetPasswordRequest) {
         try {
             userService.resetPassword(resetPasswordRequest.getToken(), resetPasswordRequest.getNewPassword());
-            return new ResponseEntity<>("Password reset successfully", HttpStatus.OK);
+            return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
         } catch (Exception e) {
-            return new ResponseEntity<>("Error: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Error: " + e.getMessage()));
         }
     }
-
 }

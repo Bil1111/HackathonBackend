@@ -19,13 +19,17 @@ public class TwilioService {
 
     public void sendSMS(String to, String message) {
         Twilio.init(accountSid, authToken);
-        Message sms = Message.creator(
-                new com.twilio.type.PhoneNumber(to), // Номер отримувача
-                new com.twilio.type.PhoneNumber(twilioPhoneNumber), // Ваш Twilio-номер
-                message // Текст повідомлення
-        ).create();
-
-        System.out.println("SMS відправлено: " + sms.getSid());
+        try {
+            Message sms = Message.creator(
+                    new com.twilio.type.PhoneNumber(to),
+                    new com.twilio.type.PhoneNumber(twilioPhoneNumber),
+                    message
+            ).create();
+            System.out.println("SMS відправлено: " + sms.getSid());
+        } catch (Exception e) {
+            System.err.println("Помилка відправки SMS: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }
 

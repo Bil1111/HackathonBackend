@@ -19,22 +19,21 @@ public class SecurityConfig {
     private JwtTokenFilter jwtTokenFilter;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler) throws Exception {
         http
-                .csrf().disable() // Disable CSRF for REST APIs (if you're using stateless authentication)
+                .csrf().disable() // Вимкнути CSRF для REST API
                 .authorizeRequests()
-                .requestMatchers("/", "/login**", "/error", "/register").permitAll() // Allow public access to these pages
-//                .anyRequest().authenticated() // Require authentication for other requests
+                .requestMatchers("/", "/login**", "/error", "/register").permitAll() // Публічні сторінки
+               // .anyRequest().authenticated() // Інші запити вимагають авторизації
                 .and()
-//                .oauth2Login() // Enable OAuth2 login
-//                .loginPage("/api/users/register") // Redirect to this page if the user is not logged in
-//                .defaultSuccessUrl("/about", true) // Redirect after successful login
-//                .failureUrl("/login?error") // Optional: Redirect to login page with error if authentication fails
-//                .and()
-                .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class); // Add JWT filter for API requests
+                .oauth2Login()
+                .successHandler(oAuth2LoginSuccessHandler) // Використовуємо кастомний хендлер
+                .and()
+                .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class); // Додаємо JWT-фільтр
 
         return http.build();
     }
+
 
     // Оголошення PasswordEncoder
     @Bean
